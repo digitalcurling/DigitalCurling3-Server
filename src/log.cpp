@@ -1,11 +1,12 @@
 ﻿#include "log.hpp"
 #include <cassert>
-#include <iostream>
 #include <exception>
 #include <thread>
 #include <string_view>
 #include <charconv>
+#include <boost/nowide/iostream.hpp>
 #include "util.hpp"
+#include "version.hpp"
 
 namespace digitalcurling3_server {
 
@@ -79,8 +80,8 @@ void PutMessage(std::ostream & o, boost::posix_time::ptime time, std::string_vie
 {
     std::ostringstream buf_header;
     buf_header << '[' << GetTimeOfDay(time) << "] " << header;
-    PutLineHeader(std::cout, buf_header.str(), message);
-    std::cout << std::endl;
+    PutLineHeader(boost::nowide::cout, buf_header.str(), message);
+    boost::nowide::cout << std::endl;
 }
 
 
@@ -88,7 +89,7 @@ void PutMessage(std::ostream & o, boost::posix_time::ptime time, std::string_vie
 } // unnamed namespace
 
 
-Log::Log(std::filesystem::path const& directory_path, bool verbose, bool debug)
+Log::Log(boost::filesystem::path const& directory_path, bool verbose, bool debug)
     : directory_path_(directory_path)
     , verbose_(verbose)
     , debug_(debug)
@@ -102,7 +103,7 @@ Log::Log(std::filesystem::path const& directory_path, bool verbose, bool debug)
     instance_ = this;
 
     // check directory_path
-    if (std::filesystem::exists(directory_path)) {
+    if (boost::filesystem::exists(directory_path)) {
         throw std::runtime_error("log directory already exists");
     }
 }
@@ -140,9 +141,9 @@ void Log::Debug(std::string_view message)
 
     if (instance_->debug_) {
         if (instance_->verbose_) {
-            std::cout << detailed << std::endl;
+            boost::nowide::cout << detailed << std::endl;
         } else {
-            PutMessage(std::cout, t, "[debug] ", message);
+            PutMessage(boost::nowide::cout, t, "[debug] ", message);
         }
     }
 
@@ -160,9 +161,9 @@ void Log::Info(std::string_view message)
     
     // stdout
     if (instance_->verbose_) {
-        std::cout << detailed << std::endl;
+        boost::nowide::cout << detailed << std::endl;
     } else {
-        PutMessage(std::cout, t, "", message);
+        PutMessage(boost::nowide::cout, t, "", message);
     }
 
     // all
@@ -180,7 +181,7 @@ void Log::Game(nlohmann::json const& json)
     instance_->CheckGameLogFileOpen();
 
     if (instance_->verbose_) {
-        std::cout << detailed << std::endl;
+        boost::nowide::cout << detailed << std::endl;
     }
 
     instance_->file_game_ << detailed << std::endl;
@@ -197,7 +198,7 @@ void Log::Shot(nlohmann::json const& json, std::uint8_t end, std::uint8_t shot)
 
     instance_->CheckDirectoryCreated();
 
-    std::ofstream file(instance_->directory_path_ / GetShotLogFile(end, shot));
+    boost::nowide::ofstream file(instance_->directory_path_ / GetShotLogFile(end, shot));
     file << detailed.dump(2) << std::endl;
 
     instance_->file_all_ << detailed << std::endl;
@@ -211,7 +212,7 @@ void Log::Warning(std::string_view message)
     boost::posix_time::ptime const t = boost::posix_time::second_clock::local_time();
     auto const detailed = instance_->CreateDetailedLog(kTagWarning, message, t);
 
-    PutMessage(std::cerr, t, "[warning] ", message);
+    PutMessage(boost::nowide::cerr, t, "[warning] ", message);
 
     // all
     instance_->file_all_ << detailed << std::endl;
@@ -225,7 +226,7 @@ void Log::Error(std::string_view message)
     boost::posix_time::ptime const t = boost::posix_time::second_clock::local_time();
     auto const detailed = instance_->CreateDetailedLog(kTagError, message, t);
 
-    PutMessage(std::cerr, t, "[error] ", message);
+    PutMessage(boost::nowide::cerr, t, "[error] ", message);
 
     // all
     instance_->file_all_ << detailed << std::endl;
@@ -247,6 +248,7 @@ nlohmann::ordered_json Log::CreateDetailedLog(std::string_view tag, nlohmann::js
     buf_thread_id << std::this_thread::get_id();
 
     nlohmann::ordered_json j{
+        { "ver", { GetLogVersionMajor(), GetLogVersionMinor() } },
         { "tag", tag },
         { "id", next_id_ },
         { "date_time", GetISO8601ExtendedString(time) },
@@ -264,7 +266,7 @@ void Log::CheckGameLogFileOpen()
     CheckDirectoryCreated();
 
     if (!file_game_.is_open()) {  // operator bool で判定すると初回にスキップされるため is_open() で判定する
-        file_game_.open(directory_path_ / kGameLogFile);
+        file_game_.open(directory_path_ / kGameLogFile.data());
     }
 }
 
@@ -272,7 +274,7 @@ void Log::CheckDirectoryCreated()
 {
     if (directory_created_) return;
 
-    std::filesystem::create_directories(directory_path_);
+    boost::filesystem::create_directories(directory_path_);
 
     directory_created_ = true;
 }

@@ -1,0 +1,70 @@
+﻿#include "version.hpp"
+
+namespace digitalcurling3_server {
+
+std::string GetVersion()
+{
+    return "@digitalcurling3_server_VERSION@";
+}
+
+std::uint32_t GetVersionMajor()
+{
+    return @digitalcurling3_server_VERSION_MAJOR@;
+}
+
+std::uint32_t GetVersionMinor()
+{
+    return @digitalcurling3_server_VERSION_MINOR@;
+}
+
+std::uint32_t GetVersionPatch()
+{
+    return @digitalcurling3_server_VERSION_PATCH@;
+}
+
+std::string GetProtocolVersion()
+{
+    return "@DIGITALCURLING3_SERVER_PROTOCOL_VERSION_MAJOR@.@DIGITALCURLING3_SERVER_PROTOCOL_VERSION_MINOR@";
+}
+
+std::uint32_t GetProtocolVersionMajor()
+{
+    return @DIGITALCURLING3_SERVER_PROTOCOL_VERSION_MAJOR@;
+}
+
+std::uint32_t GetProtocolVersionMinor()
+{
+    return @DIGITALCURLING3_SERVER_PROTOCOL_VERSION_MINOR@;
+}
+
+std::string GetConfigVersion()
+{
+    return "@DIGITALCURLING3_SERVER_CONFIG_VERSION_MAJOR@.@DIGITALCURLING3_SERVER_CONFIG_VERSION_MINOR@";
+}
+
+std::uint32_t GetConfigVersionMajor()
+{
+    return @DIGITALCURLING3_SERVER_CONFIG_VERSION_MAJOR@;
+}
+
+std::uint32_t GetConfigVersionMinor()
+{
+    return @DIGITALCURLING3_SERVER_CONFIG_VERSION_MINOR@;
+}
+
+std::string GetLogVersion()
+{
+    return "@DIGITALCURLING3_SERVER_LOG_VERSION_MAJOR@.@DIGITALCURLING3_SERVER_LOG_VERSION_MINOR@";
+}
+
+std::uint32_t GetLogVersionMajor()
+{
+    return @DIGITALCURLING3_SERVER_LOG_VERSION_MAJOR@;
+}
+
+std::uint32_t GetLogVersionMinor()
+{
+    return @DIGITALCURLING3_SERVER_LOG_VERSION_MINOR@;
+}
+
+} // namespace digitalcurling3_server

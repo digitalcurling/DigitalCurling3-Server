@@ -6,9 +6,10 @@
 #include <fstream>
 #include <mutex>
 #include <variant>
-#include <filesystem>
 
 #include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/nowide/fstream.hpp>
+#include <boost/filesystem.hpp>
 
 #include "nlohmann/json.hpp"
 
@@ -20,7 +21,7 @@ namespace digitalcurling3_server {
 class Log {
 public:
 
-    Log(std::filesystem::path const& directory_path, bool verbose, bool debug);
+    Log(boost::filesystem::path const& directory_path, bool verbose, bool debug);
     Log(Log const&) = delete;
     Log & operator = (Log const&) = delete;
     ~Log();
@@ -90,15 +91,15 @@ public:
 
 private:
     static inline Log * instance_ = nullptr;
-    std::filesystem::path const directory_path_;
+    boost::filesystem::path const directory_path_;
     bool const verbose_;
     bool const debug_;
 
     std::mutex mutex_;
     uint64_t next_id_;  // ログのID値生成用
     bool directory_created_;
-    std::ofstream file_all_;
-    std::ofstream file_game_;
+    boost::nowide::ofstream file_all_;
+    boost::nowide::ofstream file_game_;
     nlohmann::ordered_json CreateDetailedLog(std::string_view tag, nlohmann::json const& json,
         boost::posix_time::ptime time);
     void CheckGameLogFileOpen();

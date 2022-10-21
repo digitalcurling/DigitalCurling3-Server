@@ -3,6 +3,7 @@
 #include <boost/asio/ip/host_name.hpp>
 #include "server.hpp"
 #include "log.hpp"
+#include "version.hpp"
 
 namespace digitalcurling3_server {
 
@@ -11,9 +12,6 @@ using nlohmann::json;
 using namespace std::string_view_literals;
 
 namespace {
-
-constexpr int kProtocolVersionMajor = 2;
-constexpr int kProtocolVersionMinor = 0;
 
 inline void ThrowRuntimeError(size_t client_id, std::string_view message)
 {
@@ -49,8 +47,8 @@ Game::Game(Server & server, Config && config, std::string const& date_time, std:
     , json_dc_{
         { "cmd", "dc" },
         { "version", {
-            { "major", kProtocolVersionMajor },
-            { "minor", kProtocolVersionMinor },
+            { "major", GetProtocolVersionMajor()},
+            { "minor", GetProtocolVersionMinor() },
         }},
         { "game_id", game_id_ },
         { "date_time", date_time_ } }
@@ -343,6 +341,10 @@ void Game::DoApplyMove(size_t moved_client_id, digitalcurling3::Move && move, st
     auto const move_shot = game_state_.shot;
     auto const selected_move = move;
 
+    // 直前のプレイヤー状態，シミュレータ状態を保存する
+    auto const player_storage = player->CreateStorage();
+    auto const simulator_storage = simulator_->CreateStorage();
+
     // trajectoryを送信しない場合でもログには軌跡を残すため，TrajectoryCompressorは必ず必要になる．
     compressor_.Begin(config_.server.steps_per_trajectory_frame, game_state_.end);
 
@@ -371,6 +373,8 @@ void Game::DoApplyMove(size_t moved_client_id, digitalcurling3::Move && move, st
             { "shot", move_shot },
             { "selected_move", selected_move },
             { "actual_move", move },
+            { "player_storage",  *player_storage },
+            { "simulator_storage",  *simulator_storage },
             { "trajectory", compressor_.GetResult() }
         };
         Log::Shot(json_shot, move_end, move_shot);

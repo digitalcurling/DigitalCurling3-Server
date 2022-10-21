@@ -1,8 +1,6 @@
 ﻿#include <string>
 #include <sstream>
 #include <string_view>
-#include <fstream>
-#include <filesystem>
 #include <optional>
 
 #include <boost/uuid/uuid.hpp>
@@ -11,6 +9,12 @@
 
 #include <boost/program_options.hpp>
 
+#include <boost/nowide/args.hpp>
+#include <boost/nowide/fstream.hpp>
+#include <boost/nowide/filesystem.hpp>
+
+#include <boost/filesystem.hpp>
+
 #include <boost/date_time/posix_time/posix_time.hpp>
 
 #include "digitalcurling3/digitalcurling3.hpp"
@@ -18,6 +22,7 @@
 #include "log.hpp"
 #include "util.hpp"
 #include "config.hpp"
+#include "version.hpp"
 
 
 namespace digitalcurling3_server {
@@ -29,12 +34,24 @@ void Start(Config && config, std::string const& launch_time, std::string const& 
 using namespace std::string_view_literals;
 namespace dcs = digitalcurling3_server;
 using dcs::Log;
-namespace po = boost::program_options;
 
-int main(int argc, char* const argv[])
+int main(int argc, char* argv[])
 {
-    constexpr auto kDefaultConfigPath = "./config.json"sv;
-    constexpr auto kServerVersion = "0.1"sv;
+    boost::nowide::args nowide_args(argc, argv);
+    boost::nowide::nowide_filesystem();
+
+    // TODO 消す
+    // try {
+    //     nlohmann::json j = "ほ";
+    //     b << j.dump() << std::endl;
+    //     // std::cout << argv[1] << std::endl;
+    // } catch (std::exception & e) {
+    //     std::cout << e.what() << std::endl;
+    // }
+
+    // return 0;
+
+    constexpr auto kDefaultConfigPath = "config.json"sv;
     constexpr auto kManualURL = "http://github.com/digitalcurling/DigitalCurling"sv;
 
     std::optional<Log> log_instance;
@@ -45,32 +62,33 @@ int main(int argc, char* const argv[])
 
         auto const launch_time = boost::posix_time::second_clock::local_time();
         auto const game_uuid_str = boost::uuids::to_string(boost::uuids::random_generator()());
-        std::filesystem::path const log_directory = [&] {
+        boost::filesystem::path const log_directory = [&] {
             std::ostringstream buf;
-            buf << dcs::GetISO8601String(launch_time) << '_' << game_uuid_str << '/';
-            return std::filesystem::absolute(buf.str());
+            buf << dcs::GetISO8601String(launch_time) << '_' << game_uuid_str;
+            auto relative = boost::filesystem::path("log") / buf.str();
+            return boost::filesystem::absolute(relative);
         }();
 
 
         // --- コマンドライン引数の解析 ---
 
-        po::options_description opt_desc("Allowed options");
+        boost::program_options::options_description opt_desc("Allowed options");
 
         {
             std::ostringstream buf_config_desc;
             buf_config_desc << "set config json file path (default: \"" << kDefaultConfigPath << "\")";
             opt_desc.add_options()
                 ("help,h", "produce help message")
-                ("config,C", po::value<std::string>(), buf_config_desc.str().c_str())
+                ("config,C", boost::program_options::value<std::string>(), buf_config_desc.str().c_str())
                 ("version", "show version")
                 ("verbose,v", "verbose command line")
                 ("debug", "debug mode")
                 ;
         }
 
-        po::variables_map vm;
-        po::store(po::parse_command_line(argc, argv, opt_desc), vm);
-        po::notify(vm);
+        boost::program_options::variables_map vm;
+        boost::program_options::store(boost::program_options::parse_command_line(argc, argv, opt_desc), vm);
+        boost::program_options::notify(vm);
 
         bool const arg_verbose = vm.count("verbose");
         bool const arg_debug = vm.count("debug");
@@ -79,7 +97,7 @@ int main(int argc, char* const argv[])
 
         {
             std::ostringstream buf;
-            buf << "Digital Curling server ver." << kServerVersion;
+            buf << "Digital Curling server ver." << dcs::GetVersion();
             Log::Info(buf.str());
         }
 
@@ -103,25 +121,45 @@ int main(int argc, char* const argv[])
         }
 
         if (vm.count("version")) {
-            std::ostringstream buf;
-            buf << "Digital Curling: " << digitalcurling3::GetVersion();
-            Log::Info(buf.str());
+            {
+                std::ostringstream buf;
+                buf << "library version: " << digitalcurling3::GetVersion();
+                Log::Info(buf.str());
+            }
+            {
+                std::ostringstream buf;
+                buf << "protocol version: " << dcs::GetProtocolVersion();
+                Log::Info(buf.str());
+            }
+            {
+                std::ostringstream buf;
+                buf << "config version: " << dcs::GetConfigVersion();
+                Log::Info(buf.str());
+            }
+            {
+                std::ostringstream buf;
+                buf << "log version: " << dcs::GetLogVersion();
+                Log::Info(buf.str());
+            }
+
             return 0;
         }
 
-        std::filesystem::path const config_path = [&] {
-            std::filesystem::path config_path_tmp;
+        boost::filesystem::path const config_path = [&] {
+            boost::filesystem::path config_path_tmp;
             if (vm.count("config")) {
                 auto config_path_str = vm["config"].as<std::string>();
                 config_path_tmp = config_path_str;
                 std::ostringstream buf;
-                buf << "config: \"" << config_path_str << '\"';
+                buf << "specified config path: \"" << config_path_str << '\"';
                 Log::Debug(buf.str());
             } else {
-                config_path_tmp = kDefaultConfigPath;
-                Log::Debug("config: (none)");
+                config_path_tmp = kDefaultConfigPath.data();
+                std::ostringstream buf;
+                buf << "config path was not specified. use default path \"" << kDefaultConfigPath << "\".";
+                Log::Debug(buf.str());
             }
-            return std::filesystem::absolute(config_path_tmp); // 絶対パスに変換
+            return boost::filesystem::absolute(config_path_tmp); // 絶対パスに変換
         }();
 
         {
@@ -140,7 +178,7 @@ int main(int argc, char* const argv[])
 
         // --- コンフィグのパース ---
 
-        std::ifstream config_file(config_path);
+        boost::nowide::ifstream config_file(config_path);
         if (!config_file) {
             throw std::runtime_error("could not open config file");
         }
@@ -174,120 +212,4 @@ int main(int argc, char* const argv[])
 
 
     return 0;
-
-
-    // if (argc != 2) {
-    //     std::cerr << "Usage: " << argv[0] << " <config file path>\n";
-    //     return 1;
-    // }
-
-    // server::Setting server_setting;
-    // std::filesystem::path file_name;
-    // std::unique_ptr<Log> log;
-
-    // try {
-    //     // ログディレクトリを作成
-    //     auto const log_dir = std::filesystem::path("log");
-    //     std::filesystem::create_directory(log_dir);
-
-    //     // 日時を得る
-    //     auto now = std::time(0);
-    //     auto t = std::localtime(&now);
-    //     if (t == nullptr) {
-    //         throw std::runtime_error("std::localtime() returned nullptr.");
-    //     }
-    //     char date_time[32];
-    //     std::strftime(date_time, sizeof(date_time), "%Y%m%d_%H%M%S", t);
-
-    //     // ログファイルを作成
-    //     std::ofstream file;
-    //     for (int count = 0; !file.is_open(); ++count) {
-    //         // ゲームIDを作成
-    //         std::ostringstream game_id_buf;
-    //         game_id_buf << date_time << '_' << std::setfill('0') << std::right << std::setw(3) << count;
-    //         server_setting.game_id = game_id_buf.str();
-
-    //         // ファイル名を作成
-    //         file_name = log_dir / server_setting.game_id;
-    //         file_name += ".log";
-
-    //         // ファイルが存在しない場合は新規作成．
-    //         // ファイルが存在する場合はオープン時に中身を消さない．
-    //         file.open(file_name, std::ios_base::out | std::ios_base::app);
-    //         if (!file) {
-    //             continue;
-    //         }
-
-    //         // ファイルサイズを得る．
-    //         file.seekp(0, std::ios_base::end);
-    //         auto const file_size = file.tellp();
-
-    //         // 既に書き込みがあった場合はcloseして次のファイル名にする．
-    //         if (file_size != 0) {
-    //             file.close();
-    //         }
-    //     }
-
-    //     // ログファイル生成
-    //     log = std::make_unique<Log>(std::move(file));
-
-    // } catch (std::exception & e) {
-    //     std::cerr << "Exception while creating log file: " << e.what() << std::endl;
-    //     return 1;
-    // }
-
-    // try {
-    //     Log::Debug() << "log file path: " << std::filesystem::absolute(file_name);
-    //     Log::Debug() << "game id: " << server_setting.game_id;
-
-    //     // TODO 起動設定ファイルを読み込む．
-    //     std::ifstream config_file(argv[1]);
-    //     json j_config;
-    //     config_file >> j_config;
-
-    //     auto port0 = j_config.at("port").at(0).get<unsigned short>();
-    //     auto port1 = j_config.at("port").at(1).get<unsigned short>();
-
-    //     if (j_config.contains("time_limit")) {
-    //         server_setting.time_limit = std::chrono::seconds(j_config.at("time_limit").get<std::chrono::seconds::rep>());
-    //     }
-    //     
-    //     if (j_config.contains("extra_time_limit")) {
-    //         server_setting.extra_time_limit = std::chrono::seconds(j_config.at("extra_time_limit").get<std::chrono::seconds::rep>());
-    //     }
-
-    //     game::Setting game_setting;
-    //     if (j_config.contains("game_setting")) {
-    //         game_setting = j_config.at("game_setting").get<game::Setting>();
-    //     }
-
-    //     std::unique_ptr<simulation::ISimulatorSetting> simulator_setting;
-
-    //     if (j_config.contains("simulator_setting")) {
-    //         simulator_setting = j_config.at("simulator_setting").get<std::unique_ptr<simulation::ISimulatorSetting>>();
-    //     } else {
-    //         simulator_setting = std::make_unique<simulation::SimulatorFCV1Setting>();
-    //     }
-
-    //     boost::asio::io_context io_context;
-
-    //     tcp::endpoint listen_endpoint0(tcp::v4(), port0);
-    //     Log::Debug() << "port 0: " << listen_endpoint0.port();
-
-    //     tcp::endpoint listen_endpoint1(tcp::v4(), port1);
-    //     Log::Debug() << "port 1: " << listen_endpoint1.port();
-
-    //     server::Server s(io_context, listen_endpoint0, listen_endpoint1, server_setting, game_setting, *simulator_setting);
-
-    //     Log::Debug() << "Server started.";
-    //     io_context.run();
-    //     Log::Debug() << "Server terminated successfully.";
-
-    // } catch (std::exception & e) {
-    //     Log::Error() << e.what();
-    //     return 1;
-    // }
-
-    return 0;
-
 }
