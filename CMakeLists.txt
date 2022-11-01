@@ -31,8 +31,7 @@ set(CMAKE_VISIBLITY_INLINES_HIDDEN TRUE)
 add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
 add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
 
-
-add_subdirectory(extern/DigitalCurling3)
+add_subdirectory(extern/DigitalCurling3 EXCLUDE_FROM_ALL)
 
 configure_file(src/version.cpp.in version.cpp @ONLY)
 
@@ -87,4 +86,8 @@ target_link_libraries(digitalcurling3_server
     Boost::nowide
     Boost::filesystem
     Threads::Threads
+)
+
+install(TARGETS digitalcurling3_server
+  DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
