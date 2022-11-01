@@ -1,14 +1,14 @@
 # DigitalCurling3-Server
 
 デジタルカーリング思考エンジンの対戦をホストするサーバーです．
-使用方法については[対戦サーバーマニュアル](https://github.com/digitalcurling/DigitalCurling3/wiki/Server)を参照ください．
-
-
-## リンク
+使用方法については[対戦サーバーマニュアル](https://github.com/digitalcurling/DigitalCurling3/wiki/%E5%AF%BE%E6%88%A6%E3%82%B5%E3%83%BC%E3%83%90%E3%83%BC%E3%83%9E%E3%83%8B%E3%83%A5%E3%82%A2%E3%83%AB)を参照ください．
 
 - [DigitalCurling3マニュアル](https://github.com/digitalcurling/DigitalCurling3/wiki)
 - [公式サイト](http://minerva.cs.uec.ac.jp/cgi-bin/curling/wiki.cgi)
 
+## ダウンロード
+
+[リリースページ](https://github.com/digitalcurling/DigitalCurling3-Server/releases)からダウンロードしてください．
 
 ## ビルド
 
