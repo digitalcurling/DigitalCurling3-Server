@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.19)
 
 project(digitalcurling3_server
-    VERSION 0.1.2  # server version
+    VERSION 1.0.0  # server version
     LANGUAGES CXX
 )
 
