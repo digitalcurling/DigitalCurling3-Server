@@ -96,7 +96,7 @@ void TCPSession::ReadLine()
             if (error) {
                 // この部分はクライアントが正常に接続を解除した際にも呼ばれる
                 std::ostringstream buf;
-                buf << "Client " << client_id_ << "'s session will be stopped (ReadLine). - " << error.message();
+                buf << "Client " << client_id_ << "'s session will be stopped (ReadLine). (error code: " << error.value() << ")";
                 Log::Debug(buf.str());
                 server_.OnSessionStop(client_id_);
                 Close();
@@ -164,7 +164,7 @@ void TCPSession::WriteLine()
 
             if (error) { // 書き込み失敗はエラーなのでサーバーを停止
                 std::ostringstream buf;
-                buf << "client " << client_id_ << " write line - " << error.message();
+                buf << "client " << client_id_ << " error (WriteLine). (error code: " << error.value() << ")";
                 Log::Error(buf.str());
                 server_.Stop();
                 return;
