@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.19)
 
 project(digitalcurling3_server
-    VERSION 1.0.0  # server version
+    VERSION 1.1.0  # server version
     LANGUAGES CXX
 )
 
@@ -15,7 +15,7 @@ set(DIGITALCURLING3_SERVER_CONFIG_VERSION_MINOR 0)
 
 # log version
 set(DIGITALCURLING3_SERVER_LOG_VERSION_MAJOR 1)
-set(DIGITALCURLING3_SERVER_LOG_VERSION_MINOR 0)
+set(DIGITALCURLING3_SERVER_LOG_VERSION_MINOR 1)
 
 
 # use C++ 17 standard

@@ -36,7 +36,6 @@ namespace {
 
 using namespace std::string_view_literals;
 
-constexpr auto kAllLogFile  = "server.log"sv;
 constexpr auto kGameLogFile = "game.dcl2"sv;
 inline std::string GetShotLogFile(uint8_t end, uint8_t shot)
 {
@@ -111,21 +110,24 @@ void PutMessage(std::ostream & o, boost::posix_time::ptime time, std::string_vie
 } // unnamed namespace
 
 
-Log::Log(boost::filesystem::path const& directory_path, bool verbose, bool debug)
-    : directory_path_(directory_path)
+Log::Log(boost::filesystem::path const& log_file, boost::filesystem::path const& game_log_directory, bool verbose, bool debug)
+    : game_log_directory_(game_log_directory)
     , verbose_(verbose)
     , debug_(debug)
     , mutex_()
     , next_id_(0)
     , directory_created_(false)
-    , file_all_(kAllLogFile.data())
+    , file_all_()
     , file_game_()
 {
     assert(instance_ == nullptr);
     instance_ = this;
 
-    // check directory_path
-    if (boost::filesystem::exists(directory_path)) {
+    boost::filesystem::create_directories(log_file.parent_path());
+    file_all_.open(log_file, std::ios_base::out);
+
+    // check game_log_directory
+    if (boost::filesystem::exists(game_log_directory)) {
         throw std::runtime_error("log directory already exists");
     }
 }
@@ -218,9 +220,9 @@ void Log::Shot(nlohmann::json const& json, std::uint8_t end, std::uint8_t shot)
     boost::posix_time::ptime const t = boost::posix_time::second_clock::local_time();
     auto const detailed = instance_->CreateDetailedLog(kTagShot, json, t);
 
-    instance_->CheckDirectoryCreated();
+    instance_->CheckGameLogDirectoryCreated();
 
-    boost::nowide::ofstream file(instance_->directory_path_ / GetShotLogFile(end, shot));
+    boost::nowide::ofstream file(instance_->game_log_directory_ / GetShotLogFile(end, shot));
     file << detailed.dump(2) << std::endl;
 
     instance_->file_all_ << detailed << std::endl;
@@ -285,18 +287,18 @@ nlohmann::ordered_json Log::CreateDetailedLog(std::string_view tag, nlohmann::js
 
 void Log::CheckGameLogFileOpen()
 {
-    CheckDirectoryCreated();
+    CheckGameLogDirectoryCreated();
 
     if (!file_game_.is_open()) {  // operator bool で判定すると初回にスキップされるため is_open() で判定する
-        file_game_.open(directory_path_ / kGameLogFile.data());
+        file_game_.open(game_log_directory_ / kGameLogFile.data());
     }
 }
 
-void Log::CheckDirectoryCreated()
+void Log::CheckGameLogDirectoryCreated()
 {
     if (directory_created_) return;
 
-    boost::filesystem::create_directories(directory_path_);
+    boost::filesystem::create_directories(game_log_directory_);
 
     directory_created_ = true;
 }
