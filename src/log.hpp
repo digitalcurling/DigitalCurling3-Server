@@ -43,7 +43,7 @@ namespace digitalcurling3_server {
 class Log {
 public:
 
-    Log(boost::filesystem::path const& directory_path, bool verbose, bool debug);
+    Log(boost::filesystem::path const& log_file, boost::filesystem::path const& game_log_directory, bool verbose, bool debug);
     Log(Log const&) = delete;
     Log & operator = (Log const&) = delete;
     ~Log();
@@ -113,7 +113,7 @@ public:
 
 private:
     static inline Log * instance_ = nullptr;
-    boost::filesystem::path const directory_path_;
+    boost::filesystem::path const game_log_directory_;
     bool const verbose_;
     bool const debug_;
 
@@ -125,7 +125,7 @@ private:
     nlohmann::ordered_json CreateDetailedLog(std::string_view tag, nlohmann::json const& json,
         boost::posix_time::ptime time);
     void CheckGameLogFileOpen();
-    void CheckDirectoryCreated();
+    void CheckGameLogDirectoryCreated();
 };
 
 } // namespace digitalcurling3_server

@@ -74,6 +74,8 @@ int main(int argc, char* argv[])
     // return 0;
 
     constexpr auto kDefaultConfigPath = "config.json"sv;
+    constexpr auto kDefaultLogPath = "log"sv;
+    constexpr auto kLogFileBaseName  = "server.log"sv;
     constexpr auto kManualURL = "http://github.com/digitalcurling/DigitalCurling"sv;
 
     std::optional<Log> log_instance;
@@ -84,12 +86,6 @@ int main(int argc, char* argv[])
 
         auto const launch_time = boost::posix_time::second_clock::local_time();
         auto const game_uuid_str = boost::uuids::to_string(boost::uuids::random_generator()());
-        boost::filesystem::path const log_directory = [&] {
-            std::ostringstream buf;
-            buf << dcs::GetISO8601String(launch_time) << '_' << game_uuid_str;
-            auto relative = boost::filesystem::path("log") / buf.str();
-            return boost::filesystem::absolute(relative);
-        }();
 
 
         // --- コマンドライン引数の解析 ---
@@ -99,9 +95,13 @@ int main(int argc, char* argv[])
         {
             std::ostringstream buf_config_desc;
             buf_config_desc << "set config json file path (default: \"" << kDefaultConfigPath << "\")";
+            std::ostringstream buf_log_dir_desc;
+            buf_config_desc << "set log output directory (default: \"" << kDefaultLogPath << "\")";
             opt_desc.add_options()
                 ("help,h", "produce help message")
                 ("config,C", boost::program_options::value<std::string>(), buf_config_desc.str().c_str())
+                ("config-json", boost::program_options::value<std::string>(), "set config json text. do not set the option --config at the same time.")
+                ("log-dir", boost::program_options::value<std::string>(), buf_log_dir_desc.str().c_str())
                 ("version", "show version")
                 ("verbose,v", "verbose command line")
                 ("debug", "debug mode")
@@ -112,10 +112,28 @@ int main(int argc, char* argv[])
         boost::program_options::store(boost::program_options::parse_command_line(argc, argv, opt_desc), vm);
         boost::program_options::notify(vm);
 
+        boost::filesystem::path const log_directory = [&] {
+            boost::filesystem::path path;
+            if (vm.count("log-dir")) {
+                path = vm["log-dir"].as<std::string>();
+            } else {
+                path = kDefaultLogPath.data();
+            }
+            return boost::filesystem::absolute(path);
+        }();
+
+        boost::filesystem::path const log_file_path = log_directory / kLogFileBaseName.data();
+
+        boost::filesystem::path const game_log_directory = [&] {
+            std::ostringstream buf;
+            buf << dcs::GetISO8601String(launch_time) << '_' << game_uuid_str;
+            return log_directory / buf.str();
+        }();
+
         bool const arg_verbose = vm.count("verbose");
         bool const arg_debug = vm.count("debug");
 
-        log_instance.emplace(log_directory, arg_verbose, arg_debug); // ログシステムの起動
+        log_instance.emplace(log_file_path, game_log_directory, arg_verbose, arg_debug); // ログシステムの起動
 
         {
             std::ostringstream buf;
@@ -167,44 +185,68 @@ int main(int argc, char* argv[])
             return 0;
         }
 
-        boost::filesystem::path const config_path = [&] {
-            boost::filesystem::path config_path_tmp;
-            if (vm.count("config")) {
-                auto config_path_str = vm["config"].as<std::string>();
-                config_path_tmp = config_path_str;
-                std::ostringstream buf;
-                buf << "specified config path: \"" << config_path_str << '\"';
-                Log::Debug(buf.str());
-            } else {
-                config_path_tmp = kDefaultConfigPath.data();
-                std::ostringstream buf;
-                buf << "config path was not specified. use default path \"" << kDefaultConfigPath << "\".";
-                Log::Debug(buf.str());
-            }
-            return boost::filesystem::absolute(config_path_tmp); // 絶対パスに変換
-        }();
-
         {
             std::ostringstream buf;
-            buf << "config file   : \"" << config_path.string() << "\"";
+            buf << "log file: \"" << log_file_path.string() << "\"";
             Log::Info(buf.str());
         }
 
         {
             std::ostringstream buf;
-            buf << "log directory : \"" << log_directory.string() << "\"";
+            buf << "game log dir: \"" << game_log_directory.string() << "\"";
             Log::Info(buf.str());
         }
-
-
 
         // --- コンフィグのパース ---
 
-        boost::nowide::ifstream config_file(config_path);
-        if (!config_file) {
-            throw std::runtime_error("could not open config file");
+        bool const arg_config = vm.count("config");
+        bool const arg_config_json = vm.count("config-json");
+
+        if (arg_config && arg_config_json) {
+            throw std::runtime_error("do not set option --config and --config-json at the same time");
         }
-        auto const config_json = nlohmann::json::parse(config_file, nullptr, true, true); // ignore_comment: true
+
+        nlohmann::json const config_json = [&] {
+            if (arg_config_json) {
+                auto const config_json_str = vm["config-json"].as<std::string>();
+
+                std::ostringstream buf;
+                buf << "specified config json: " << config_json_str;
+                Log::Debug(buf.str());
+
+                return nlohmann::json::parse(config_json_str);
+            } else { // config オプションが指定されているか，config config-jsonの両方が指定されていない
+                boost::filesystem::path const config_path = [&] {
+                    boost::filesystem::path config_path_tmp;
+                    if (arg_config) {
+                        auto config_path_str = vm["config"].as<std::string>();
+                        config_path_tmp = config_path_str;
+                        std::ostringstream buf;
+                        buf << "specified config path: \"" << config_path_str << '\"';
+                        Log::Debug(buf.str());
+                    } else {
+                        config_path_tmp = kDefaultConfigPath.data();
+                        std::ostringstream buf;
+                        buf << "config path was not specified. use default path \"" << kDefaultConfigPath << "\".";
+                        Log::Debug(buf.str());
+                    }
+                    return boost::filesystem::absolute(config_path_tmp); // 絶対パスに変換
+                }();
+
+                {
+                    std::ostringstream buf;
+                    buf << "config file: \"" << config_path.string() << "\"";
+                    Log::Info(buf.str());
+                }
+
+                boost::nowide::ifstream config_file(config_path);
+                if (!config_file) {
+                    throw std::runtime_error("could not open config file");
+                }
+                return nlohmann::json::parse(config_file, nullptr, true, true); // ignore_comment: true
+            }
+        }();
+
         dcs::Config config = config_json.get<dcs::Config>();
 
         // --- サーバーの起動 ---
