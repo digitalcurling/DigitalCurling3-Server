@@ -46,6 +46,7 @@ void to_json(nlohmann::json& j, Config const& config)
             }
         }
         j_server["timeout_dc_ok"] = config.server.timeout_dc_ok;
+        j_server["update_interval"] = config.server.update_interval;
         j_server["send_trajectory"] = config.server.send_trajectory;
         j_server["steps_per_trajectory_frame"] = config.server.steps_per_trajectory_frame;
     }
@@ -84,6 +85,11 @@ void from_json(nlohmann::json const& j, Config & config)
             }
         }
         j_server.at("timeout_dc_ok").get_to(config.server.timeout_dc_ok);
+        if (auto it = j_server.find("update_interval"); it != j_server.end()) {
+            it.value().get_to(config.server.update_interval);
+        } else {
+            config.server.update_interval = std::chrono::milliseconds(0);
+        }
         j_server.at("send_trajectory").get_to(config.server.send_trajectory);
         j_server.at("steps_per_trajectory_frame").get_to(config.server.steps_per_trajectory_frame);
     }
