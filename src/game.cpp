@@ -22,6 +22,7 @@
 
 #include "game.hpp"
 
+#include <thread>
 #include <boost/asio/ip/host_name.hpp>
 #include "server.hpp"
 #include "log.hpp"
@@ -85,6 +86,7 @@ Game::Game(Server & server, Config && config, std::string const& date_time, std:
     , last_move_free_guard_zone_foul_(false)
     , json_last_move_actual_move_()
     , json_last_move_trajectory_()
+    , last_update_message_derivery_()
 {
     // rule
 
@@ -432,6 +434,19 @@ void Game::DoApplyMove(size_t moved_client_id, digitalcurling3::Move && move, st
 
 void Game::DeliverUpdateMessage()
 {
+    // 高速に通信すると通信が切断されてしまうため、
+    // 前回の DeliverUpdateMessage から一定時間以上経つまでsleepをかける。
+    if (config_.server.update_interval.count() > 0 && last_update_message_derivery_.has_value()) {
+        auto const now = std::chrono::steady_clock::now();
+        auto const sleep_time = config_.server.update_interval
+            - std::chrono::duration_cast<std::chrono::milliseconds>(now - *last_update_message_derivery_);
+
+        if (sleep_time.count() > 0) {
+            std::this_thread::sleep_for(sleep_time);
+        }
+    }
+    last_update_message_derivery_ = std::chrono::steady_clock::now();
+
     json json_update = {
         { "cmd", "update" },
         { "next_team", game_state_.GetNextTeam() },

@@ -36,6 +36,7 @@ struct Config {
     struct Server {
         std::array<unsigned short, 2> port;
         std::chrono::milliseconds timeout_dc_ok;
+        std::chrono::milliseconds update_interval;
         bool send_trajectory;
         size_t steps_per_trajectory_frame;
     } server;
