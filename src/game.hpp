@@ -80,6 +80,8 @@ private:
     nlohmann::json json_last_move_actual_move_;
     nlohmann::json json_last_move_trajectory_;
 
+    std::optional<std::chrono::steady_clock::time_point> last_update_message_derivery_;
+
     void DoApplyMove(size_t moving_client_id, digitalcurling3::Move && move, std::chrono::milliseconds const& elapsed);
     void DeliverUpdateMessage();
 };
